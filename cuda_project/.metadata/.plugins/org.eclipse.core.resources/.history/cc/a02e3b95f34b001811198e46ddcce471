@@ -1,0 +1,13 @@
+/*
+ * neural_net.c
+ *
+ *  Created on: Apr 29, 2018
+ *      Author: sandile
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+
+___global___ void compute_layer(float* instances, int len_instance, float* weights, float* out, out_offset){
+
+}

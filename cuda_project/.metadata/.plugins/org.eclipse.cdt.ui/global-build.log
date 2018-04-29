@@ -1,0 +1,46 @@
+23:11:47 **** Build of configuration Debug for project feed_forward ****
+make all 
+Building file: ../feedforward.cu
+Invoking: NVCC Compiler
+/usr/local/cuda-9.1/bin/nvcc -G -g -O0 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_70,code=sm_70  -odir "." -M -o "feedforward.d" "../feedforward.cu"
+/usr/local/cuda-9.1/bin/nvcc -G -g -O0 --compile --relocatable-device-code=false -gencode arch=compute_50,code=compute_50 -gencode arch=compute_70,code=compute_70 -gencode arch=compute_50,code=sm_50  -x cu -o  "feedforward.o" "../feedforward.cu"
+Finished building: ../feedforward.cu
+ 
+Building target: feed_forward
+Invoking: NVCC Linker
+/usr/local/cuda-9.1/bin/nvcc --cudart static --relocatable-device-code=false -gencode arch=compute_50,code=compute_50 -gencode arch=compute_70,code=compute_70 -gencode arch=compute_50,code=sm_50 -link -o  "feed_forward"  ./feedforward.o   
+/usr/lib/gcc/x86_64-linux-gnu/5/../../../x86_64-linux-gnu/Scrt1.o: In function `_start':
+(.text+0x20): undefined reference to `main'
+collect2: error: ld returned 1 exit status
+makefile:58: recipe for target 'feed_forward' failed
+make: *** [feed_forward] Error 1
+23:12:38 **** Build of configuration Debug for project feed_forward ****
+make all 
+Building file: ../feedforward.cu
+Invoking: NVCC Compiler
+/usr/local/cuda-9.1/bin/nvcc -G -g -O0 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_70,code=sm_70  -odir "." -M -o "feedforward.d" "../feedforward.cu"
+/usr/local/cuda-9.1/bin/nvcc -G -g -O0 --compile --relocatable-device-code=false -gencode arch=compute_50,code=compute_50 -gencode arch=compute_70,code=compute_70 -gencode arch=compute_50,code=sm_50  -x cu -o  "feedforward.o" "../feedforward.cu"
+../feedforward.cu(11): error: this declaration has no storage class or type specifier
+
+../feedforward.cu(11): error: expected a ";"
+
+At end of source: warning: parsing restarts here after previous syntax error
+
+2 errors detected in the compilation of "/tmp/tmpxft_000023fe_00000000-7_feedforward.compute_70.cpp1.ii".
+make: *** [feedforward.o] Error 1
+subdir.mk:18: recipe for target 'feedforward.o' failed
+23:13:02 **** Build of configuration Debug for project feed_forward ****
+make all 
+Building file: ../feedforward.cu
+Invoking: NVCC Compiler
+/usr/local/cuda-9.1/bin/nvcc -G -g -O0 -gencode arch=compute_50,code=sm_50 -gencode arch=compute_70,code=sm_70  -odir "." -M -o "feedforward.d" "../feedforward.cu"
+/usr/local/cuda-9.1/bin/nvcc -G -g -O0 --compile --relocatable-device-code=false -gencode arch=compute_50,code=compute_50 -gencode arch=compute_70,code=compute_70 -gencode arch=compute_50,code=sm_50  -x cu -o  "feedforward.o" "../feedforward.cu"
+../feedforward.cu(11): error: this declaration has no storage class or type specifier
+
+../feedforward.cu(11): error: expected a ";"
+
+At end of source: warning: parsing restarts here after previous syntax error
+
+2 errors detected in the compilation of "/tmp/tmpxft_00002450_00000000-7_feedforward.compute_70.cpp1.ii".
+make: *** [feedforward.o] Error 1
+subdir.mk:18: recipe for target 'feedforward.o' failed

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;feed_forward/feedforward&apos;" deleteContents="false" description="Delete resource &apos;feed_forward/feedforward&apos;" element1="/feed_forward/feedforward" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1525026734266"/>&#x0A;<refactoring comment="Delete resource &apos;feed_forward&apos;" deleteContents="false" description="Delete resource &apos;feed_forward&apos;" element1="/feed_forward" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1525036547086"/>
+</session>
