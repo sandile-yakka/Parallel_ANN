@@ -4,4 +4,5 @@ This repository is for our term project in parallelizing an artificial neural ne
 Some Databases to consider:
 
 archive.ics.uci.edu/ml/datasets/Phishing+Websites
+http://archive.ics.uci.edu/ml/datasets/ISOLET
 
