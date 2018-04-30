@@ -1,11 +1,11 @@
 # Parallel_ANN
 This repository is for our term project in parallelizing an artificial neural network using CUDA and MPI
 
-Some Databases to consider:
+Link to ShareLatex document:
 
-- http://archive.ics.uci.edu/ml/datasets/Phishing+Websites
+- https://www.sharelatex.com/project/5adf5ef38f53b375855753c2
 
-- http://archive.ics.uci.edu/ml/datasets/ISOLET
+The database we will use:
 
 - http://archive.ics.uci.edu/ml/datasets/SUSY
 
