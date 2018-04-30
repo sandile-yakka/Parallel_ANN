@@ -31,11 +31,37 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 	for(unsigned int i = 0; i < len_instance; i++){
 			val += instance[i] * weights[tidx + i*tdim];
 	}
-
 	 //apply sigmoid and write output
 	out[bidx*out_offset + tidx ] = val ; //1.0/(1+exp(-val));
-
 }
+// calculate the delta for the output layer
+__global__ void delta_j(float* outputs, float* targets, float* deltaJ){
+
+	int tidx = threadxIdx.x;
+	int bidx = blockIdx.x;
+	int tdim = blockDim.x;
+	int i = bidx*tdim + tidx;
+
+		deltaJ[i] = outputs[i]*(1-outputs[i])(targets[i]-outputs[i]);
+}
+//calculates the delta for any hidden layer
+//num blocks == num d_instances
+//threads per block == num nodes in layer
+__global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
+	float* nxt_weights, float* deltaK ){
+
+	int tidx = threadxIdx.x;
+	int bidx = blockIdx.x;
+	int tdim = blockDim.x;
+	int idx = bidx*tdim + tidx;
+
+	float sum = 0.0;
+	for(int i = 0; i < num_outs; i++){
+		sum += nxt_weights[tidx*num_outs + i]*deltaJ[bidx*num_outs + i];
+	}
+	deltaK[idx] = l_outs[idx](1 - l_outs[idx])*sum;
+}
+
 int main(){
 
 	float* instances = (float*) malloc(6*sizeof(float));
@@ -58,7 +84,6 @@ int main(){
 	}
 	cudaMemcpy(d_instances, instances, 6*sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_weights, weights, 6*sizeof(float), cudaMemcpyHostToDevice);
- // const int len = 3;
 	compute_layer<<<3,2>>>(d_instances, 3, d_weights, d_out,2);
 
 	cudaMemcpy(outs, d_out, 4*sizeof(float), cudaMemcpyDeviceToHost);
