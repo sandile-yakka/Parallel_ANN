@@ -3,7 +3,7 @@ This repository is for our term project in parallelizing an artificial neural ne
 
 Link to original developer of Neural Net source code:
 
--http://www.millermattson.com/dave/?p=54
+- http://www.millermattson.com/dave/?p=54
 
 Link to ShareLatex document:
 
