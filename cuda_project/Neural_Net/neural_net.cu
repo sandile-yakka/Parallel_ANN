@@ -61,7 +61,8 @@ __global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
 	}
 	deltaK[idx] = l_outs[idx](1 - l_outs[idx])*sum;
 }
-
+//grid dim == number of instances
+//threads per block == the total number of weights in the network
 __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 		float* in_lay1, int in1_size, float* in_lay2, int in2_size, float* output){
 
@@ -90,6 +91,29 @@ __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 			 int tmp_tidx = tid - prev_layer;
 			 outputs[tidx] = deltaJ[0] * in_lay2[bidx + tmp_tidx];
 		}
+}
+
+//grid dim == num of instances
+//threads pb == number of weights
+__global__ void reduction_kernel(float* errDerivates, float* output){
+	int tidx = threadxIdx.x;
+	int bidx = blockIdx.x;
+	int tdim = blockDim.x;
+
+	atomicAdd(&output[tidx], errDerivates[tidx]);
+
+}
+//update weights with their corresponding delta values
+//one block with the number of threads equal to the total number
+//of weights in the network
+__global__ void update_kernel(float* weights, float* new_weights, int lrate, float* deltas){
+	int tidx = threadxIdx.x;
+	int bidx = blockIdx.x;
+	int tdim = blockDim.x;
+	int idx = bidx*tdim + tidx;
+
+	new_weights[idx] = weights[idx] + lrate*deltas[idx];
+
 }
 
 int main(){
