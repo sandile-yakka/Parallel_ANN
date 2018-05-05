@@ -62,6 +62,36 @@ __global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
 	deltaK[idx] = l_outs[idx](1 - l_outs[idx])*sum;
 }
 
+__global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
+		float* in_lay1, int in1_size, float* in_lay2, int in2_size, float* output){
+
+		int tidx = threadxIdx.x;
+		int bidx = blockIdx.x;
+		int tdim = blockDim.x;
+		int idx = bidx*tdim + tidx;
+
+		if(tidx < in1_size*in2_size){ // if weight is in hidden layer
+			//loop through to find the corresponding delta value
+				// for(int i = 1; i <= in2_size; i++){
+				// 	if((tidx+1)%i == 0){
+				// 		idx_deltak = i-1;
+				// 	} paused, gonna explore different logic
+				// }
+			//
+			//so to get corresponding input value if we sayy
+			// so if i say the index of the corresponding input is
+			int idx_deltak = tidx % in_lay2;
+			int in_idx = floorf(tidx/in_lay2);
+			outputs[bidx*tdim + tidx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*tdim + in_idx];
+		}
+		else{
+			 //last layer calculations
+			 int prev_layer = in1_size * in2_size;
+			 int tmp_tidx = tid - prev_layer;
+			 outputs[tidx] = deltaJ[0] * in_lay2[bidx + tmp_tidx];
+		}
+}
+
 int main(){
 
 	float* instances = (float*) malloc(6*sizeof(float));
@@ -87,7 +117,6 @@ int main(){
 	compute_layer<<<3,2>>>(d_instances, 3, d_weights, d_out,2);
 
 	cudaMemcpy(outs, d_out, 4*sizeof(float), cudaMemcpyDeviceToHost);
-
 
 	for(int i = 0; i < 4; i++){
 		printf("%f ", outs[i]);
