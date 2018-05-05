@@ -8,12 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-// Includes CUDA
+
 #include <cuda_runtime.h>
-// Utilities and timing functions
-// #include <helper_functions.h>    // includes cuda.h and cuda_runtime_api.h
-// // CUDA helper functions
-// #include <helper_cuda.h>
+
 __const__ int len = 3;
 __global__ void compute_layer(float* instances, const int len_instance, float* weights, float* out, int out_offset){
 	__shared__ float instance[len];
@@ -37,12 +34,12 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 // calculate the delta for the output layer
 __global__ void delta_j(float* outputs, float* targets, float* deltaJ){
 
-	int tidx = threadxIdx.x;
+	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 	int i = bidx*tdim + tidx;
 
-		deltaJ[i] = outputs[i]*(1-outputs[i])(targets[i]-outputs[i]);
+		deltaJ[i] = outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]);
 }
 //calculates the delta for any hidden layer
 //num blocks == num d_instances
@@ -50,7 +47,7 @@ __global__ void delta_j(float* outputs, float* targets, float* deltaJ){
 __global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
 	float* nxt_weights, float* deltaK ){
 
-	int tidx = threadxIdx.x;
+	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 	int idx = bidx*tdim + tidx;
@@ -59,14 +56,14 @@ __global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
 	for(int i = 0; i < num_outs; i++){
 		sum += nxt_weights[tidx*num_outs + i]*deltaJ[bidx*num_outs + i];
 	}
-	deltaK[idx] = l_outs[idx](1 - l_outs[idx])*sum;
+	deltaK[idx] = l_outs[idx]*(1 - l_outs[idx])*sum;
 }
 //grid dim == number of instances
 //threads per block == the total number of weights in the network
 __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 		float* in_lay1, int in1_size, float* in_lay2, int in2_size, float* output){
 
-		int tidx = threadxIdx.x;
+		int tidx = threadIdx.x;
 		int bidx = blockIdx.x;
 		int tdim = blockDim.x;
 		int idx = bidx*tdim + tidx;
@@ -81,22 +78,22 @@ __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 			//
 			//so to get corresponding input value if we sayy
 			// so if i say the index of the corresponding input is
-			int idx_deltak = tidx % in_lay2;
-			int in_idx = floorf(tidx/in_lay2);
-			outputs[bidx*tdim + tidx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*tdim + in_idx];
+			int idx_deltak = tidx % in2_size;
+			int in_idx = floorf(tidx/in2_size);
+			output[bidx*tdim + tidx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*tdim + in_idx];
 		}
 		else{
 			 //last layer calculations
 			 int prev_layer = in1_size * in2_size;
-			 int tmp_tidx = tid - prev_layer;
-			 outputs[tidx] = deltaJ[0] * in_lay2[bidx + tmp_tidx];
+			 int tmp_tidx = tidx - prev_layer;
+			 output[tidx] = deltaJ[0] * in_lay2[bidx + tmp_tidx];
 		}
 }
 
 //grid dim == num of instances
 //threads pb == number of weights
 __global__ void reduction_kernel(float* errDerivates, float* output){
-	int tidx = threadxIdx.x;
+	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 
@@ -107,7 +104,7 @@ __global__ void reduction_kernel(float* errDerivates, float* output){
 //one block with the number of threads equal to the total number
 //of weights in the network
 __global__ void update_kernel(float* weights, float* new_weights, int lrate, float* deltas){
-	int tidx = threadxIdx.x;
+	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 	int idx = bidx*tdim + tidx;
