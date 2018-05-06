@@ -14,7 +14,7 @@
 __const__ int len = 3;
 
 
-//grid dim == num of input d_instances
+//grid dim == num of input instances
 //block dim == num of nodes in layer
 __global__ void compute_layer(float* instances, const int len_instance, float* weights, float* out){
 	__shared__ float instance[len];
@@ -22,9 +22,9 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 	int tidx = threadIdx.x;
 	int tdim = blockDim.x;
 
-	// for(unsigned int i = bidx*tdim + tidx; i < len_instance; i+= tdim){
-			instance[tidx] = instances[bidx*tdim + tidx];
-	// }
+	for(unsigned int i = tidx; i < len_instance; i+= tdim){
+			instance[i] = instances[ bidx*len_instance + i];
+	}
 	__syncthreads();
 	//All threads have read instance data into memory
 	float val = 0.0;
@@ -34,7 +34,6 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 	}
 	 //apply sigmoid and write output
 	out[bidx*tdim + tidx ] = val ; //1.0/(1+exp(-val));
-	printf("%f ", val);
 }
 // calculate the delta for the outputs
 //nb == num of input instances
@@ -156,20 +155,23 @@ int main(){
 		printf("%f ", outs[i]);
 	}
 	printf("\n");
+
 	// this is for the new layer
+	printf("SECOND LAYER ******************\n");
 
 	float* weights2 = (float*) malloc(3*sizeof(float));
 	float* outs2 = (float*)malloc(2*sizeof(float));
 
 	for(int i = 0; i < 3; i++) weights2[i] = 1;
-
-	cudaMalloc((void**)&d_instances, 6*sizeof(float));
-	cudaMalloc((void**)&d_weights, 3*sizeof(float));
+	float* dn_instances = 0;
+	float* dn_weights = 0;
+	cudaMalloc((void**)&dn_instances, 6*sizeof(float));
+	cudaMalloc((void**)&dn_weights, 3*sizeof(float));
 	cudaMalloc((void**)&d_out, 2*sizeof(float));
 
-	cudaMemcpy(d_instances, outs, 6*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_weights, weights2, 3*sizeof(float), cudaMemcpyHostToDevice);
-	compute_layer<<<2,1>>>(d_instances, 3, d_weights, d_out);
+	cudaMemcpy(dn_instances, outs, 6*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(dn_weights, weights2, 3*sizeof(float), cudaMemcpyHostToDevice);
+	compute_layer<<<2,1>>>(dn_instances, 3, dn_weights, d_out);
 
 	cudaMemcpy(outs2, d_out, 2*sizeof(float), cudaMemcpyDeviceToHost);
 	printf("\n");
