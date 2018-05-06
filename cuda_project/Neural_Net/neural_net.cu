@@ -12,6 +12,10 @@
 #include <cuda_runtime.h>
 
 __const__ int len = 3;
+
+
+//grid dim == num of input d_instances
+//block dim == num of nodes in layer
 __global__ void compute_layer(float* instances, const int len_instance, float* weights, float* out, int out_offset){
 	__shared__ float instance[len];
 	int bidx = blockIdx.x;
@@ -29,9 +33,12 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 			val += instance[i] * weights[tidx + i*tdim];
 	}
 	 //apply sigmoid and write output
-	out[bidx*out_offset + tidx ] = val ; //1.0/(1+exp(-val));
+	out[bidx*tdim + tidx ] = val ; //1.0/(1+exp(-val));
 }
-// calculate the delta for the output layer
+// calculate the delta for the outputs
+//nb == num of input instances
+//npb == num of output nodes
+
 __global__ void delta_j(float* outputs, float* targets, float* deltaJ){
 
 	int tidx = threadIdx.x;
@@ -42,9 +49,9 @@ __global__ void delta_j(float* outputs, float* targets, float* deltaJ){
 		deltaJ[i] = outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]);
 }
 //calculates the delta for any hidden layer
-//num blocks == num d_instances
+//num blocks == num instances
 //threads per block == num nodes in layer
-__global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
+__global__ void delta_k(float* layer_outs ,float* deltaJ, int num_outs,
 	float* nxt_weights, float* deltaK ){
 
 	int tidx = threadIdx.x;
@@ -56,7 +63,7 @@ __global__ void delta_k(float* l_outs ,float* deltaJ, int num_outs,
 	for(int i = 0; i < num_outs; i++){
 		sum += nxt_weights[tidx*num_outs + i]*deltaJ[bidx*num_outs + i];
 	}
-	deltaK[idx] = l_outs[idx]*(1 - l_outs[idx])*sum;
+	deltaK[idx] = layer_outs[idx]*(1 - layer_outs[idx])*sum;
 }
 //grid dim == number of instances
 //threads per block == the total number of weights in the network
@@ -80,16 +87,15 @@ __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 			// so if i say the index of the corresponding input is
 			int idx_deltak = tidx % in2_size;
 			int in_idx = floorf(tidx/in2_size);
-			output[bidx*tdim + tidx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*tdim + in_idx];
+			output[idx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*tdim + in_idx];
 		}
 		else{
 			 //last layer calculations
 			 int prev_layer = in1_size * in2_size;
 			 int tmp_tidx = tidx - prev_layer;
-			 output[tidx] = deltaJ[0] * in_lay2[bidx + tmp_tidx];
+			 output[idx] = deltaJ[0] * in_lay2[bidx*in2_size + tmp_tidx];
 		}
 }
-
 //grid dim == num of instances
 //threads pb == number of weights
 __global__ void reduction_kernel(float* errDerivates, float* output){
@@ -100,9 +106,9 @@ __global__ void reduction_kernel(float* errDerivates, float* output){
 	atomicAdd(&output[tidx], errDerivates[tidx]);
 
 }
-//update weights with their corresponding delta values
-//one block with the number of threads equal to the total number
-//of weights in the network
+//grid dim == 1 block
+//num threads per block == total number of weights in network
+
 __global__ void update_kernel(float* weights, float* new_weights, int lrate, float* deltas){
 	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
