@@ -89,13 +89,15 @@ __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 			// so if i say the index of the corresponding input is
 			int idx_deltak = tidx % in2_size;
 			int in_idx = floorf(tidx/in2_size);
-			output[idx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*tdim + in_idx];
+			output[idx] = deltaK[bidx*tdim + idx_deltak] * in_lay1[bidx*in1_size + in_idx];
+			// printf("%f \n",deltaK[bidx*dk_c + idx_deltak] * in_lay1[bidx*in1_size + in_idx]);
 		}
 		else{
 			 //last layer calculations
 			 int prev_layer = in1_size * in2_size;
 			 int tmp_tidx = tidx - prev_layer;
-			 output[idx] = deltaJ[0] * in_lay2[bidx*in2_size + tmp_tidx];
+			 output[idx] = deltaJ[bidx] * in_lay2[bidx*in2_size + tmp_tidx];
+			printf("%f \n", deltaJ[bidx] * in_lay2[bidx*in2_size + tmp_tidx]);
 		}
 }
 //grid dim == num of instances
@@ -197,9 +199,17 @@ int main(){
 
 	delta_j<<<2,1>>>(d_out2, targs,dj);
 	cudaDeviceSynchronize();
- float* dk = 0;
- cudaMalloc((void**)&dk, 6*sizeof(float));
+  float* dk = 0;
+  cudaMalloc((void**)&dk, 6*sizeof(float));
 	delta_k<<<2,3>>>(d_out, dj, 1, dn_weights , dk);
-cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
+
+	float* errd = 0;
+	cudaMalloc((void**)&errd, 12*sizeof(float));
+	printf("The error derivatives ********* \n");
+  errDerivates<<<2,12>>>(dj, 2, dk, 3, d_instances, 3, d_out, 3, errd );
+	cudaDeviceSynchronize();
+
+
 	return 0;
 }
