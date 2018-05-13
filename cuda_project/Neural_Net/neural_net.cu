@@ -65,6 +65,7 @@ __global__ void delta_k(float* layer_outs ,float* deltaJ, int num_outs,
 		sum += nxt_weights[tidx*num_outs + i]*deltaJ[bidx*num_outs + i];
 	}
 	deltaK[idx] = layer_outs[idx]*(1 - layer_outs[idx])*sum;
+	printf("%f \n", layer_outs[idx]*(1 - layer_outs[idx])*sum );
 }
 //grid dim == number of instances
 //threads per block == the total number of weights in the network
@@ -166,15 +167,16 @@ int main(){
 	for(int i = 0; i < 3; i++) weights2[i] = 1;
 	float* dn_instances = 0;
 	float* dn_weights = 0;
+	float* d_out2 = 0;
 	cudaMalloc((void**)&dn_instances, 6*sizeof(float));
 	cudaMalloc((void**)&dn_weights, 3*sizeof(float));
-	cudaMalloc((void**)&d_out, 2*sizeof(float));
+	cudaMalloc((void**)&d_out2, 2*sizeof(float));
 
 	cudaMemcpy(dn_instances, outs, 6*sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(dn_weights, weights2, 3*sizeof(float), cudaMemcpyHostToDevice);
-	compute_layer<<<2,1>>>(dn_instances, 3, dn_weights, d_out);
+	compute_layer<<<2,1>>>(dn_instances, 3, dn_weights, d_out2);
 
-	cudaMemcpy(outs2, d_out, 2*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(outs2, d_out2, 2*sizeof(float), cudaMemcpyDeviceToHost);
 	printf("\n");
 	for(int i = 0; i < 2; i++){
 		printf("%f ", outs2[i]);
@@ -193,8 +195,11 @@ int main(){
 
 	cudaMemcpy(targs, targets, 2*sizeof(float), cudaMemcpyHostToDevice);
 
-	delta_j<<<2,1>>>(d_out, targs,dj);
+	delta_j<<<2,1>>>(d_out2, targs,dj);
 	cudaDeviceSynchronize();
-
+ float* dk = 0;
+ cudaMalloc((void**)&dk, 6*sizeof(float));
+	delta_k<<<2,3>>>(d_out, dj, 1, dn_weights , dk);
+cudaDeviceSynchronize();
 	return 0;
 }
