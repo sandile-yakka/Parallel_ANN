@@ -107,7 +107,7 @@ __global__ void reduction_kernel(float* errDerivates, float* output){
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 
-	atomicAdd(&output[tidx], errDerivates[tidx]);
+	atomicAdd(&output[ tidx], errDerivates[bidx*tdim +  tidx]);
 
 }
 //grid dim == 1 block
@@ -208,6 +208,17 @@ int main(){
 	cudaMalloc((void**)&errd, 12*sizeof(float));
 	printf("The error derivatives ********* \n");
   errDerivates<<<2,12>>>(dj, 2, dk, 3, d_instances, 3, d_out, 3, errd );
+
+	float* tErros  = 0;
+	cudaMalloc((void**)&tErros, 12*sizeof(float));
+
+	reduction_kernel<<<2,12>>>(errd, tErros);
+
+	float* errtd = (float*) malloc(12*sizeof(float));
+	cudaMemcpy(errtd, tErros, 12*sizeof(float), cudaMemcpyDeviceToHost);
+
+	printf("%f --- \n", errtd[11]);
+
 	cudaDeviceSynchronize();
 
 
