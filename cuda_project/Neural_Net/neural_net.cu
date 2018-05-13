@@ -45,8 +45,9 @@ __global__ void delta_j(float* outputs, float* targets, float* deltaJ){
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 	int i = bidx*tdim + tidx;
-
+	printf("%f hello \n", outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]) );
 		deltaJ[i] = outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]);
+
 }
 //calculates the delta for any hidden layer
 //num blocks == num instances
@@ -180,6 +181,20 @@ int main(){
 	}
 	printf("\n");
 
+	float* targs = 0;
+	float* dj = 0;
+	cudaMalloc((void**)&targs, 2*sizeof(float));
+	cudaMalloc((void**)&dj, 2*sizeof(float));
+	float* targets = (float*) malloc(2*sizeof(float));
+	targets[0] = 7;
+	targets[1] = 4;
+
+
+
+	cudaMemcpy(targs, targets, 2*sizeof(float), cudaMemcpyHostToDevice);
+
+	delta_j<<<2,1>>>(d_out, targs,dj);
+	cudaDeviceSynchronize();
 
 	return 0;
 }
