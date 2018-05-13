@@ -33,7 +33,7 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 			val += instance[i] * weights[tidx + i*tdim];
 	}
 	 //apply sigmoid and write output
-	out[bidx*tdim + tidx ] = val ; //1.0/(1+exp(-val));
+	out[bidx*tdim + tidx] = val ; //1.0/(1+exp(-val));
 }
 // calculate the delta for the outputs
 //nb == num of input instances
@@ -112,15 +112,21 @@ __global__ void reduction_kernel(float* errDerivates, float* output){
 }
 //grid dim == 1 block
 //num threads per block == total number of weights in network
-
-__global__ void update_kernel(float* weights, float* new_weights, int lrate, float* deltas){
+__global__ void update_kernel(float* weights, int tw_lay1,float* weights2,float* new_w1,
+	 float* new_w2, int lrate, float* deltas){
 	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 	int idx = bidx*tdim + tidx;
 
-	new_weights[idx] = weights[idx] + lrate*deltas[idx];
-
+	if(idx < tw_lay1){
+		new_w1[idx] = weights[idx] + lrate*deltas[idx];
+		printf("%f \n", weights[idx] + lrate*deltas[idx] );
+	}
+	else{
+		new_w2[idx] = weights2[idx-tw_lay1] + lrate*deltas[idx];
+		printf("%f lay2 \n", weights2[idx-tw_lay1] + lrate*deltas[idx] );
+	}
 }
 
 int main(){
@@ -193,8 +199,6 @@ int main(){
 	targets[0] = 7;
 	targets[1] = 4;
 
-
-
 	cudaMemcpy(targs, targets, 2*sizeof(float), cudaMemcpyHostToDevice);
 
 	delta_j<<<2,1>>>(d_out2, targs,dj);
@@ -217,7 +221,19 @@ int main(){
 	float* errtd = (float*) malloc(12*sizeof(float));
 	cudaMemcpy(errtd, tErros, 12*sizeof(float), cudaMemcpyDeviceToHost);
 
-	printf("%f --- \n", errtd[11]);
+	printf("The error derivatives reduced \n");
+	for(int i=0; i < 12; i++){
+		printf("%f --- \n", errtd[i]);
+	}
+
+
+	float* n_weights = (float*) malloc(12*sizeof(float));
+
+	float* lay1_w = 0;
+	float* lay2_w = 0;
+	cudaMalloc((void**)&lay1_w, 9*sizeof(float));
+	cudaMalloc((void**)&lay2_w, 3*sizeof(float));
+	update_kernel<<<1, 12>>>(d_weights, 9, dn_weights,  lay1_w, lay2_w, 1, tErros);
 
 	cudaDeviceSynchronize();
 
