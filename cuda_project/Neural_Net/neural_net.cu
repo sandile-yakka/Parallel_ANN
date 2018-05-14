@@ -13,7 +13,6 @@
 
 __const__ int len = 3;
 
-
 //grid dim == num of input instances
 //block dim == num of nodes in layer
 __global__ void compute_layer(float* instances, const int len_instance, float* weights, float* out){
@@ -33,21 +32,20 @@ __global__ void compute_layer(float* instances, const int len_instance, float* w
 			val += instance[i] * weights[tidx + i*tdim];
 	}
 	 //apply sigmoid and write output
-	out[bidx*tdim + tidx] = val ; //1.0/(1+exp(-val));
+	out[bidx*tdim + tidx] = 1.0/(1+exp(-val));
 }
+
 // calculate the delta for the outputs
 //nb == num of input instances
 //npb == num of output nodes
-
 __global__ void delta_j(float* outputs, float* targets, float* deltaJ){
 
 	int tidx = threadIdx.x;
 	int bidx = blockIdx.x;
 	int tdim = blockDim.x;
 	int i = bidx*tdim + tidx;
-	printf("%f hello \n", outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]) );
-		deltaJ[i] = outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]);
 
+		deltaJ[i] = outputs[i]*(1-outputs[i])*(targets[i]-outputs[i]);
 }
 //calculates the delta for any hidden layer
 //num blocks == num instances
@@ -77,14 +75,9 @@ __global__ void errDerivates(float* deltaJ, int dj_c, float* deltaK, int dk_c,
 		int tdim = blockDim.x;
 		int idx = bidx*tdim + tidx;
 
-		if(tidx < in1_size*in2_size){ // if weight is in hidden layer
+		if(tidx < in1_size*in2_size){
+			// if weight is in hidden layer
 			//loop through to find the corresponding delta value
-				// for(int i = 1; i <= in2_size; i++){
-				// 	if((tidx+1)%i == 0){
-				// 		idx_deltak = i-1;
-				// 	} paused, gonna explore different logic
-				// }
-			//
 			//so to get corresponding input value if we sayy
 			// so if i say the index of the corresponding input is
 			int idx_deltak = tidx % in2_size;
@@ -121,11 +114,11 @@ __global__ void update_kernel(float* weights, int tw_lay1,float* weights2,float*
 
 	if(idx < tw_lay1){
 		new_w1[idx] = weights[idx] + lrate*deltas[idx];
-		printf("%f \n", weights[idx] + lrate*deltas[idx] );
+		// printf("%f \n", weights[idx] + lrate*deltas[idx] );
 	}
 	else{
 		new_w2[idx] = weights2[idx-tw_lay1] + lrate*deltas[idx];
-		printf("%f lay2 \n", weights2[idx-tw_lay1] + lrate*deltas[idx] );
+		// printf("%f lay2 \n", weights2[idx-tw_lay1] + lrate*deltas[idx] );
 	}
 }
 
@@ -145,7 +138,7 @@ void read_function(float* targets, float* dataPoints, int max, char* name){
 				    temp_f = atof(token);
 						if(j == 0){
 							targets[i] = temp_f;
-							printf("first token %f\n", atof(token) );
+							// printf("first token %f\n", atof(token) );
 						}
 						else{
 							dataPoints[i*18 + j-1] = temp_f;
@@ -165,120 +158,85 @@ void read_function(float* targets, float* dataPoints, int max, char* name){
 
 int main(){
 
-	int num_instances = 5;
-	int numNodes = 5;
+	int num_instances = 40000;
+	int num_nodes = 5;
 
 	float* targets = (float*) malloc(num_instances*sizeof(float));
 	float* dataset = (float*) malloc(num_instances*18*sizeof(float));
 
 	read_function(targets, dataset, num_instances, "SUSY.txt");
 
-	float* w_weights = (float*) malloc(18 * numNodes);
+	float* w_weights = (float*) malloc(18 * num_nodes*sizeof(float));
 //initialize random weights for the first layer
-  for(int i = 0; i < 18 * numNodes ; i++ ){
+  for(int i = 0; i < 18 * num_nodes ; i++ ){
 		w_weights[i] = (float)rand()/(float)(RAND_MAX/1);
 	}
-	float* u_weights = (float*) malloc(numNodes);
+	float* u_weights = (float*) malloc(num_nodes*sizeof(float));
 	//initialize random weights for the second layer
-	for(int i = 0; i < numNodes ; i++){
+	for(int i = 0; i < num_nodes ; i++){
 		u_weights[i] = (float)rand()/(float)(RAND_MAX/1);
 	}
 
-  float* outs = malloc(num_instances*sizeof(float));
-
+  float* outs = (float*)malloc(num_instances*sizeof(float));
 	float* d_instances = 0;
 	float* d_weights = 0;
+	float* du_weights = 0;
 	float* d_out = 0;
 
 	cudaMalloc((void**)&d_instances, num_instances*18*sizeof(float));
-	cudaMalloc((void**)&d_weights, numNodes*18*sizeof(float));
-	cudaMalloc((void**)&d_out, num_instances*sizeof(float));
+	cudaMalloc((void**)&d_weights, num_nodes*18*sizeof(float));
+	cudaMalloc((void**)&d_out, num_instances*num_nodes*sizeof(float));
+	cudaMalloc((void**)&du_weights, num_nodes*sizeof(float));
 
-	cudaMemcpy(d_instances, instances, num_instances*sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_weights, weights, numNodes*18*sizeof(float), cudaMemcpyHostToDevice);
-
+	cudaMemcpy(d_instances, dataset, num_instances*18*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_weights, w_weights, num_nodes*18*sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(du_weights, u_weights, num_nodes*sizeof(float), cudaMemcpyHostToDevice);
 	//put a for loop here
+	// for(int epoch = 1; epoch < 100; epoch++)
+	//begin feedforward
+	for(int epoch = 0; epoch < 100; epoch++){
+  //layer ____1____
+	compute_layer<<<num_instances, num_nodes>>>(d_instances, 18, d_weights, d_out);
 
-	compute_layer<<<num_instances,numNodes>>>(d_instances, 18, d_weights, d_out);
+	float* layer2_out = 0;
+	cudaMalloc((void**)&layer2_out, num_instances*sizeof(float));
+	//layer ____2_____
+	compute_layer<<<num_instances, 1>>>(d_out, num_nodes, du_weights, layer2_out);
+	/*
+	Feedforward operation is done now to backpropagate
+	*/
+  float* targs = 0;
+	float* dj = 0;
+	cudaMalloc((void**)&targs, num_instances*sizeof(float));
+	cudaMalloc((void**)&dj, num_instances*sizeof(float));
+
+	cudaMemcpy(targs, targets, num_instances*sizeof(float), cudaMemcpyHostToDevice);
 	//
-	// cudaMemcpy(outs, d_out, 6*sizeof(float), cudaMemcpyDeviceToHost);
-	// printf("\n");
-	// for(int i = 0; i < 6; i++){
-	// 	printf("%f ", outs[i]);
-	// }
-	// printf("\n");
+	delta_j<<<num_instances,1>>>(layer2_out, targs,dj);
+	cudaDeviceSynchronize();
+  float* dk = 0;
+  cudaMalloc((void**)&dk, num_instances*num_nodes*sizeof(float));
+	delta_k<<<num_instances, num_nodes>>>(d_out, dj, 1, du_weights , dk);
+  cudaDeviceSynchronize();
 	//
-	// // this is for the new layer
-	// printf("SECOND LAYER ******************\n");
-	//
-	// float* weights2 = (float*) malloc(3*sizeof(float));
-	// float* outs2 = (float*)malloc(2*sizeof(float));
-	//
-	// for(int i = 0; i < 3; i++) weights2[i] = 1;
-	// float* dn_instances = 0;
-	// float* dn_weights = 0;
-	// float* d_out2 = 0;
-	// cudaMalloc((void**)&dn_instances, 6*sizeof(float));
-	// cudaMalloc((void**)&dn_weights, 3*sizeof(float));
-	// cudaMalloc((void**)&d_out2, 2*sizeof(float));
-	//
-	// cudaMemcpy(dn_instances, outs, 6*sizeof(float), cudaMemcpyHostToDevice);
-	// cudaMemcpy(dn_weights, weights2, 3*sizeof(float), cudaMemcpyHostToDevice);
-	// compute_layer<<<2,1>>>(dn_instances, 3, dn_weights, d_out2);
-	//
-	// cudaMemcpy(outs2, d_out2, 2*sizeof(float), cudaMemcpyDeviceToHost);
-	// printf("\n");
-	// for(int i = 0; i < 2; i++){
-	// 	printf("%f ", outs2[i]);
-	// }
-	// printf("\n");
-	//
-	// float* targs = 0;
-	// float* dj = 0;
-	// cudaMalloc((void**)&targs, 2*sizeof(float));
-	// cudaMalloc((void**)&dj, 2*sizeof(float));
-	// float* targets = (float*) malloc(2*sizeof(float));
-	// targets[0] = 7;
-	// targets[1] = 4;
-	//
-	// cudaMemcpy(targs, targets, 2*sizeof(float), cudaMemcpyHostToDevice);
-	//
-	// delta_j<<<2,1>>>(d_out2, targs,dj);
+	float* errd = 0;
+	int errd_size = (18*num_nodes + num_nodes);
+	cudaMalloc((void**)&errd, num_instances*errd_size*sizeof(float));
+  errDerivates<<<num_instances, errd_size>>>(dj, num_instances, dk, num_nodes, d_instances, 18, d_out, num_nodes, errd);
+	float* tErros  = 0;
+	cudaMalloc((void**)&tErros, errd_size*sizeof(float));
+
+	reduction_kernel<<<num_instances,errd_size>>>(errd, tErros);
+
+	float* lay1_w = 0;
+	float* lay2_w = 0;
+	cudaMalloc((void**)&lay1_w, 18*num_nodes*sizeof(float));
+	cudaMalloc((void**)&lay2_w, num_nodes*sizeof(float));
+	update_kernel<<<1, num_instances*errd_size>>>(w_weights, 18*num_nodes, du_weights, lay1_w, lay2_w, 0.5, tErros);
+	cudaMemcpy(d_weights, lay1_w, 18*num_nodes*sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(du_weights, lay2_w, num_nodes*sizeof(float), cudaMemcpyDeviceToHost);
+
+	}
 	// cudaDeviceSynchronize();
-  // float* dk = 0;
-  // cudaMalloc((void**)&dk, 6*sizeof(float));
-	// delta_k<<<2,3>>>(d_out, dj, 1, dn_weights , dk);
-  // cudaDeviceSynchronize();
-	//
-	// float* errd = 0;
-	// cudaMalloc((void**)&errd, 12*sizeof(float));
-	// printf("The error derivatives ********* \n");
-  // errDerivates<<<2,12>>>(dj, 2, dk, 3, d_instances, 3, d_out, 3, errd );
-	//
-	// float* tErros  = 0;
-	// cudaMalloc((void**)&tErros, 12*sizeof(float));
-	//
-	// reduction_kernel<<<2,12>>>(errd, tErros);
-	//
-	// float* errtd = (float*) malloc(12*sizeof(float));
-	// cudaMemcpy(errtd, tErros, 12*sizeof(float), cudaMemcpyDeviceToHost);
-	//
-	// printf("The error derivatives reduced \n");
-	// for(int i=0; i < 12; i++){
-	// 	printf("%f --- \n", errtd[i]);
-	// }
-	//
-	//
-	// float* n_weights = (float*) malloc(12*sizeof(float));
-	//
-	// float* lay1_w = 0;
-	// float* lay2_w = 0;
-	// cudaMalloc((void**)&lay1_w, 9*sizeof(float));
-	// cudaMalloc((void**)&lay2_w, 3*sizeof(float));
-	// update_kernel<<<1, 12>>>(d_weights, 9, dn_weights,  lay1_w, lay2_w, 1, tErros);
-	//
-	// cudaDeviceSynchronize();
-
-
 	return 0;
 }
